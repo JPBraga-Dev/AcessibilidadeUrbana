@@ -41,13 +41,13 @@ function App() {
 
         <TextInput
           style={styles.input_contato}
-          placeholder="Email"
+          placeholder="Coloque seu Email"
           placeholderTextColor="gray"
         />
 
         <TextInput
           style={styles.input_contato}
-          placeholder="Senha"
+          placeholder="Crie sua Senha"
           placeholderTextColor="gray"
         />
       </View>
