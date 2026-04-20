@@ -12,19 +12,6 @@ function App() {
   return (
     <View style={styles.container_padrao}>
 
-    <view style={styles.container_icone_voltar_contato}>
-      <TouchableOpacity onPress= {() => navigation.goBack()}>
-        <MaterialCommunityIcons
-          name = "keyboard-backspace"
-          size={40}
-          color = "blue"
-        />  
-      </TouchableOpacity>
-    
-    
-    
-    </view>
-
       <View>
         <Text style={[styles.texto_padrao, { fontSize: 38, marginBottom: 50 }]}>
           <Text style={{ color: '#3498DB', fontWeight: 'bold' }}>Acesse</Text>{' '}
