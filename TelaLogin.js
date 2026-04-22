@@ -55,7 +55,7 @@ function App({ navigation }) {
 
         <Text> | </Text>
 
-        <TouchableOpacity onPress={() => alert('Senha')}>
+        <TouchableOpacity onPress={() => navigation.navigate('TelaRecuperarSenha')}>
           <Text style={{ color: '#4A90E2', textDecorationLine: 'underline' }}>
             Esqueceu sua senha?
           </Text>
