@@ -1,48 +1,53 @@
 import { StyleSheet } from 'react-native';
 
-const styles = StyleSheet.create({
-  container_padrao: {
+export default StyleSheet.create({
+  container: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    height: '100vh', 
   },
 
-  texto_padrao: {
-    fontSize: 15,
+  header: {
+    backgroundColor: '#1976d2', 
+    padding: 16,
+  },
+
+  headerText: {
+    color: 'white',
+    fontSize: 18,
     fontWeight: 'bold',
-    color: 'black',
   },
 
-  botao_padrao: {
-    backgroundColor: '#3498DB',
-    width: 250,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 5,
+  mapContainer: {
+    flex: 1,
   },
 
-  input_contato: {
-    height: 50,
-    width: 250,
-    borderColor: 'gray',
-    borderWidth: 1,
-    marginBottom: 20,
-    paddingLeft: 10,
+  iframe: {
+    width: '100%',
+    height: '100%',
+    borderWidth: 0,
   },
 
-  conteiner_botao: {
-    marginBottom: 20,
-    alignItems: 'center',
+  filters: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    padding: 10,
+    backgroundColor: '#eee',
   },
 
-  container_icone_voltar_contato: {
-    position: 'absolute',
-    top: 20,
-    left: 20,
-    zIndex: 10,
-    color: '#3498DB'
+  filterBtn: {
+    backgroundColor: '#ddd',
+    padding: 8,
+    borderRadius: 20,
+  },
+
+  footer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    padding: 10,
+    backgroundColor: '#eee',
+  },
+
+  footerText: {
+    fontSize: 12,
   },
 });
-
-export default styles;
