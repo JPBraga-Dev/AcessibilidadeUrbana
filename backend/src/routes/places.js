@@ -1,0 +1,141 @@
+import { Router } from 'express';
+import { body, query, validationResult } from 'express-validator';
+import { supabase } from '../lib/supabase.js';
+import { requireAuth } from '../middleware/auth.js';
+
+const router = Router();
+
+// GET /places — listagem com filtros opcionais
+// Query params: category, region_id, min_rating, search, limit, offset
+router.get('/', requireAuth, async (req, res) => {
+  const { category, region_id, min_rating, search, limit = 20, offset = 0 } = req.query;
+
+  let q = supabase
+    .from('places')
+    .select('id, name, category, address, latitude, longitude, avg_rating, region_id, created_by, created_at')
+    .order('created_at', { ascending: false })
+    .range(Number(offset), Number(offset) + Number(limit) - 1);
+
+  if (category) q = q.eq('category', category);
+  if (region_id) q = q.eq('region_id', region_id);
+  if (min_rating) q = q.gte('avg_rating', Number(min_rating));
+  if (search) q = q.ilike('name', `%${search}%`);
+
+  const { data, error } = await q;
+  if (error) return res.status(500).json({ error: error.message });
+  return res.json(data);
+});
+
+// GET /places/map — dados para o mapa (público, read-only)
+// Query params:
+//   filter=todos | rampas | calcadas | 4estrelas
+router.get('/map', async (req, res) => {
+  const { filter = 'todos' } = req.query;
+
+  const [levelRes, coordRes] = await Promise.all([
+    supabase
+      .from('places_accessibility_level')
+      .select('id, name, avg_rating, accessibility_level'),
+    supabase.from('places').select('id, latitude, longitude'),
+  ]);
+
+  if (levelRes.error) return res.status(500).json({ error: levelRes.error.message });
+  if (coordRes.error) return res.status(500).json({ error: coordRes.error.message });
+
+  const coordMap = Object.fromEntries(coordRes.data.map((p) => [p.id, p]));
+
+  let merged = levelRes.data
+    .map((p) => ({
+      ...p,
+      latitude: coordMap[p.id]?.latitude ?? null,
+      longitude: coordMap[p.id]?.longitude ?? null,
+    }))
+    .filter((p) => p.latitude != null && p.longitude != null);
+
+  // Filtro: 4 estrelas ou mais
+  if (filter === '4estrelas') {
+    merged = merged.filter((p) => Number(p.avg_rating) >= 4);
+  }
+
+  // Filtros de critério de acessibilidade — agrega via accessibility_checklist
+  if (filter === 'rampas' || filter === 'calcadas') {
+    const coluna = filter === 'rampas' ? 'ramp' : 'sidewalk';
+
+    const { data: checklists, error: cerr } = await supabase
+      .from('accessibility_checklist')
+      .select(`${coluna}, reviews ( place_id )`)
+      .eq(coluna, true);
+
+    if (cerr) return res.status(500).json({ error: cerr.message });
+
+    const placeIdsComCriterio = new Set(
+      checklists.map((c) => c.reviews?.place_id).filter(Boolean)
+    );
+    merged = merged.filter((p) => placeIdsComCriterio.has(p.id));
+  }
+
+  return res.json(merged);
+});
+
+// GET /places/:id — detalhes completos de um local
+router.get('/:id', requireAuth, async (req, res) => {
+  const { data, error } = await supabase
+    .from('places')
+    .select('*, regions(name)')
+    .eq('id', req.params.id)
+    .maybeSingle();
+
+  if (error) return res.status(500).json({ error: error.message });
+  if (!data) return res.status(404).json({ error: 'Local não encontrado.' });
+  return res.json(data);
+});
+
+// POST /places — cadastro de novo local
+router.post(
+  '/',
+  requireAuth,
+  [
+    body('name').trim().notEmpty(),
+    body('category').trim().notEmpty(),
+    body('address').trim().notEmpty(),
+    body('latitude').isFloat({ min: -90, max: 90 }),
+    body('longitude').isFloat({ min: -180, max: 180 }),
+    body('region_id').optional().isUUID(),
+  ],
+  async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+
+    const { name, category, address, latitude, longitude, region_id } = req.body;
+
+    const { data, error } = await supabase
+      .from('places')
+      .insert({ name, category, address, latitude, longitude, region_id: region_id ?? null, created_by: req.user.id })
+      .select()
+      .single();
+
+    if (error) return res.status(500).json({ error: error.message });
+    return res.status(201).json(data);
+  }
+);
+
+// GET /places/:placeId/reviews — avaliações de um local com perfil e checklist
+router.get('/:placeId/reviews', requireAuth, async (req, res) => {
+  const { data, error } = await supabase
+    .from('reviews')
+    .select(`
+      id, rating, comment, created_at, updated_at,
+      profiles ( name, avatar_url ),
+      accessibility_checklist (
+        ramp, sidewalk, sound_signaling, tactile_floor,
+        disabled_parking, elevator, accessible_bathroom
+      )
+    `)
+    .eq('place_id', req.params.placeId)
+    .order('created_at', { ascending: false });
+
+  if (error) return res.status(500).json({ error: error.message });
+  return res.json(data);
+});
+
+export default router;

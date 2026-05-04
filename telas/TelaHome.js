@@ -1,10 +1,10 @@
 import { Text, View, TouchableOpacity, Alert } from 'react-native';
-import styles from '../styles';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import styles, { cores } from '../styles';
 import { useAuth } from '../contexts/AuthContext';
 
 function TelaHome() {
   const { user, sair } = useAuth();
-
   const nome = user?.user_metadata?.nome ?? user?.email ?? 'usuário';
 
   const confirmarSair = () => {
@@ -15,33 +15,23 @@ function TelaHome() {
   };
 
   return (
-    <View style={styles.container_padrao}>
-      <View>
-        <Text style={[styles.texto_padrao, { fontSize: 38, marginBottom: 20 }]}>
-          <Text style={{ color: '#3498DB', fontWeight: 'bold' }}>Acesse</Text>{' '}
-          <Text style={{ fontWeight: 'bold' }}>cidade</Text>
-        </Text>
+    <View style={styles.container_centralizado}>
+      <View style={styles.logo_circulo}>
+        <MaterialCommunityIcons
+          name="wheelchair-accessibility"
+          size={56}
+          color={cores.fundo}
+        />
       </View>
+      <Text style={styles.logo_titulo}>Acesse Cidade</Text>
 
-      <Text
-        style={[
-          styles.texto_padrao,
-          { fontSize: 18, marginBottom: 40, textAlign: 'center' },
-        ]}>
+      <Text style={[styles.descricao, { textAlign: 'center', fontSize: 16 }]}>
         Olá, {nome}!
       </Text>
 
-      <View style={styles.conteiner_botao}>
-        <TouchableOpacity style={styles.botao_padrao} onPress={confirmarSair}>
-          <Text
-            style={[
-              styles.texto_padrao,
-              { fontWeight: 'bold', color: 'white' },
-            ]}>
-            Sair
-          </Text>
-        </TouchableOpacity>
-      </View>
+      <TouchableOpacity style={styles.botao_primario} onPress={confirmarSair}>
+        <Text style={styles.botao_primario_texto}>SAIR</Text>
+      </TouchableOpacity>
     </View>
   );
 }
