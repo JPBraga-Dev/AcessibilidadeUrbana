@@ -1,1 +1,19 @@
+<<<<<<< HEAD
+=======
+node_modules/
+.expo/
+dist/
+npm-debug.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+web-build/
+
+.DS_Store
+.env
+.env.local
+>>>>>>> a3ac064d80ee28cfdd71c366eeb3a2212b795098
 node_modules

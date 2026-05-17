@@ -4,12 +4,6 @@ import cors from 'cors';
 
 import authRouter from './routes/auth.js';
 import placesRouter from './routes/places.js';
-import reviewsRouter from './routes/reviews.js';
-import favoritesRouter from './routes/favorites.js';
-import regionsRouter from './routes/regions.js';
-import statsRouter from './routes/stats.js';
-import reportsRouter from './routes/reports.js';
-import supportRouter from './routes/support.js';
 
 const app = express();
 
@@ -18,12 +12,6 @@ app.use(express.json());
 
 app.use('/auth', authRouter);
 app.use('/places', placesRouter);
-app.use('/reviews', reviewsRouter);
-app.use('/favorites', favoritesRouter);
-app.use('/regions', regionsRouter);
-app.use('/stats', statsRouter);
-app.use('/reports', reportsRouter);
-app.use('/support', supportRouter);
 
 app.get('/health', (_req, res) => res.json({ status: 'ok' }));
 

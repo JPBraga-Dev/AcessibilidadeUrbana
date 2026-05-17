@@ -26,8 +26,12 @@ router.get('/', requireAuth, async (req, res) => {
   return res.json(data);
 });
 
-// GET /places/map — dados para o mapa (view com nível de acessibilidade + coordenadas)
-router.get('/map', requireAuth, async (req, res) => {
+// GET /places/map — dados para o mapa (público, read-only)
+// Query params:
+//   filter=todos | rampas | calcadas | 4estrelas
+router.get('/map', async (req, res) => {
+  const { filter = 'todos' } = req.query;
+
   const [levelRes, coordRes] = await Promise.all([
     supabase
       .from('places_accessibility_level')
@@ -40,11 +44,35 @@ router.get('/map', requireAuth, async (req, res) => {
 
   const coordMap = Object.fromEntries(coordRes.data.map((p) => [p.id, p]));
 
-  const merged = levelRes.data.map((p) => ({
-    ...p,
-    latitude: coordMap[p.id]?.latitude ?? null,
-    longitude: coordMap[p.id]?.longitude ?? null,
-  }));
+  let merged = levelRes.data
+    .map((p) => ({
+      ...p,
+      latitude: coordMap[p.id]?.latitude ?? null,
+      longitude: coordMap[p.id]?.longitude ?? null,
+    }))
+    .filter((p) => p.latitude != null && p.longitude != null);
+
+  // Filtro: 4 estrelas ou mais
+  if (filter === '4estrelas') {
+    merged = merged.filter((p) => Number(p.avg_rating) >= 4);
+  }
+
+  // Filtros de critério de acessibilidade — agrega via accessibility_checklist
+  if (filter === 'rampas' || filter === 'calcadas') {
+    const coluna = filter === 'rampas' ? 'ramp' : 'sidewalk';
+
+    const { data: checklists, error: cerr } = await supabase
+      .from('accessibility_checklist')
+      .select(`${coluna}, reviews ( place_id )`)
+      .eq(coluna, true);
+
+    if (cerr) return res.status(500).json({ error: cerr.message });
+
+    const placeIdsComCriterio = new Set(
+      checklists.map((c) => c.reviews?.place_id).filter(Boolean)
+    );
+    merged = merged.filter((p) => placeIdsComCriterio.has(p.id));
+  }
 
   return res.json(merged);
 });
