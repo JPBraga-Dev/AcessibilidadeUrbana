@@ -7,7 +7,7 @@ import {
   TextInput,
 } from 'react-native';
 import { MaterialCommunityIcons } from 'react-native-vector-icons';
-import styles from './Styles';
+import styles from './styles';
 function App() {
   return (
     <View style={styles.container_padrao}>
