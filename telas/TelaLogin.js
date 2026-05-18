@@ -2,11 +2,13 @@ import { useState } from 'react';
 import { Text, View, TouchableOpacity, TextInput, Alert } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import styles, { cores } from '../styles';
-import { supabase } from '../lib/supabase';
+import { authApi } from '../lib/api';
+import { useAuth } from '../contexts/AuthContext';
 
 function TelaLogin({ navigation }) {
-  const [email, setEmail] = useState('');
-  const [senha, setSenha] = useState('');
+  const { entrar } = useAuth();
+  const [email, setEmail]       = useState('');
+  const [senha, setSenha]       = useState('');
   const [carregando, setCarregando] = useState(false);
 
   const handleLogin = async () => {
@@ -16,14 +18,13 @@ function TelaLogin({ navigation }) {
     }
 
     setCarregando(true);
-    const { error } = await supabase.auth.signInWithPassword({
-      email: email.trim().toLowerCase(),
-      password: senha,
-    });
-    setCarregando(false);
-
-    if (error) {
-      Alert.alert('Erro ao entrar', error.message);
+    try {
+      const { token, user } = await authApi.login(email.trim().toLowerCase(), senha);
+      await entrar(token, user);
+    } catch (err) {
+      Alert.alert('Erro ao entrar', err.message);
+    } finally {
+      setCarregando(false);
     }
   };
 
@@ -72,10 +73,7 @@ function TelaLogin({ navigation }) {
       </View>
 
       <TouchableOpacity
-        style={[
-          styles.botao_primario,
-          carregando && styles.botao_primario_desabilitado,
-        ]}
+        style={[styles.botao_primario, carregando && styles.botao_primario_desabilitado]}
         onPress={handleLogin}
         disabled={carregando}>
         <Text style={styles.botao_primario_texto}>
