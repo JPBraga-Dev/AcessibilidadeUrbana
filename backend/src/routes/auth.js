@@ -165,6 +165,50 @@ router.get('/me', requireAuth, async (req, res) => {
   });
 });
 
+// POST /auth/reset-password — redefinição direta (email + nova senha)
+// Versão simples para projeto acadêmico sem infra de e-mail
+router.post(
+  '/reset-password',
+  [
+    body('email').isEmail().normalizeEmail(),
+    body('newPassword').isLength({ min: 6 }),
+  ],
+  async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+
+    const { email, newPassword } = req.body;
+
+    const { data: user } = await supabase
+      .from('users')
+      .select('id, is_active')
+      .eq('email', email)
+      .maybeSingle();
+
+    if (!user) {
+      return res.status(404).json({ error: 'E-mail não cadastrado.' });
+    }
+    if (!user.is_active) {
+      return res.status(403).json({ error: 'Conta desativada.' });
+    }
+
+    const password_hash = await bcrypt.hash(newPassword, 12);
+
+    const { error: updErr } = await supabase
+      .from('users')
+      .update({
+        password_hash,
+        failed_login_attempts: 0,
+        locked_until: null,
+      })
+      .eq('id', user.id);
+
+    if (updErr) return res.status(500).json({ error: updErr.message });
+
+    return res.json({ success: true, message: 'Senha redefinida com sucesso.' });
+  }
+);
+
 // PUT /auth/profile
 router.put(
   '/profile',
@@ -194,5 +238,25 @@ router.put(
     return res.json(data);
   }
 );
+
+// GET /auth/stats — estatísticas do usuário logado
+router.get('/stats', requireAuth, async (req, res) => {
+  const userId = req.user.id;
+
+  const { count: totalReviews } = await supabase
+    .from('reviews')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', userId);
+
+  const { count: totalPlaces } = await supabase
+    .from('places')
+    .select('id', { count: 'exact', head: true })
+    .eq('created_by', userId);
+
+  return res.json({
+    total_reviews: totalReviews ?? 0,
+    total_places:  totalPlaces  ?? 0,
+  });
+});
 
 export default router;

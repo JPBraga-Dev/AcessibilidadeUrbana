@@ -1,104 +1,156 @@
 import { useState } from 'react';
-import { Text, View, TouchableOpacity, TextInput, Alert } from 'react-native';
+import {
+  Text, View, TouchableOpacity, TextInput,
+  Alert, ScrollView, StyleSheet, ActivityIndicator,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import * as Linking from 'expo-linking';
-import styles, { cores } from '../styles';
-import { supabase } from '../lib/supabase';
+import { cores } from '../styles';
+import { authApi } from '../lib/api';
 
 function TelaRecuperarSenha({ navigation }) {
-  const [email, setEmail] = useState('');
-  const [carregando, setCarregando] = useState(false);
+  const insets = useSafeAreaInsets();
+  const [email, setEmail]                   = useState('');
+  const [novaSenha, setNovaSenha]           = useState('');
+  const [confirmarSenha, setConfirmarSenha] = useState('');
+  const [carregando, setCarregando]         = useState(false);
 
-  const handleEnviarLink = async () => {
-    if (!email) {
-      Alert.alert('Atenção', 'Informe seu e-mail.');
+  const handleRedefinir = async () => {
+    if (!email || !novaSenha || !confirmarSenha) {
+      Alert.alert('Atenção', 'Preencha todos os campos.');
+      return;
+    }
+    if (novaSenha.length < 6) {
+      Alert.alert('Atenção', 'A senha deve ter no mínimo 6 caracteres.');
+      return;
+    }
+    if (novaSenha !== confirmarSenha) {
+      Alert.alert('Atenção', 'As senhas não coincidem.');
       return;
     }
 
     setCarregando(true);
-    const { error } = await supabase.auth.resetPasswordForEmail(
-      email.trim().toLowerCase(),
-      { redirectTo: Linking.createURL('login') }
-    );
-    setCarregando(false);
-
-    if (error) {
-      Alert.alert('Erro', error.message);
-      return;
+    try {
+      await authApi.resetPassword(email.trim().toLowerCase(), novaSenha);
+      Alert.alert(
+        'Senha redefinida',
+        'Sua senha foi alterada com sucesso. Faça login com a nova senha.',
+        [{ text: 'OK', onPress: () => navigation.goBack() }],
+      );
+    } catch (err) {
+      Alert.alert('Erro', err.message);
+    } finally {
+      setCarregando(false);
     }
-
-    Alert.alert(
-      'Link enviado',
-      'Verifique seu e-mail para redefinir a senha.',
-      [{ text: 'OK', onPress: () => navigation.goBack() }]
-    );
   };
 
   return (
-    <View style={styles.container_padrao}>
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.botao_voltar}
-          onPress={() => navigation.goBack()}>
-          <MaterialCommunityIcons
-            name="arrow-left"
-            size={24}
-            color={cores.texto}
-          />
+    <View style={s.container}>
+      {/* Header fixo */}
+      <View style={[s.header, { paddingTop: insets.top + 12 }]}>
+        <TouchableOpacity style={s.voltarBtn} onPress={() => navigation.goBack()}>
+          <MaterialCommunityIcons name="arrow-left" size={24} color={cores.texto} />
         </TouchableOpacity>
-        <Text style={styles.header_titulo}>Recuperar Senha</Text>
+        <Text style={s.headerTitulo}>Recuperar Senha</Text>
+        <View style={{ width: 40 }} />
       </View>
 
-      <MaterialCommunityIcons
-        name="cellphone-key"
-        size={64}
-        color={cores.primaria}
-        style={styles.icone_grande}
-      />
+      {/* Conteúdo rolável */}
+      <ScrollView
+        contentContainerStyle={s.corpo}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}>
 
-      <Text style={styles.titulo_secao}>Esqueceu sua senha?</Text>
-      <Text style={styles.descricao}>
-        Digite seu e-mail para receber o link de recuperação.
-      </Text>
-
-      <View style={styles.campo}>
-        <Text style={styles.label}>E-mail cadastrado</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="seu@email.com"
-          placeholderTextColor={cores.textoSecundario}
-          value={email}
-          onChangeText={setEmail}
-          keyboardType="email-address"
-          autoCapitalize="none"
-          autoCorrect={false}
-        />
-      </View>
-
-      <TouchableOpacity
-        style={[
-          styles.botao_primario,
-          carregando && styles.botao_primario_desabilitado,
-        ]}
-        onPress={handleEnviarLink}
-        disabled={carregando}>
-        <Text style={styles.botao_primario_texto}>
-          {carregando ? 'ENVIANDO...' : 'ENVIAR LINK'}
-        </Text>
-      </TouchableOpacity>
-
-      <View style={styles.info_card}>
         <MaterialCommunityIcons
-          name="information-outline"
-          size={20}
-          color={cores.primariaEscura}
+          name="cellphone-key"
+          size={64}
+          color={cores.primaria}
+          style={{ alignSelf: 'center', marginTop: 8, marginBottom: 16 }}
         />
-        <Text style={styles.info_card_texto}>
-          Verifique sua caixa de entrada e spam após o envio.
+
+        <Text style={s.titulo}>Redefinir senha</Text>
+        <Text style={s.descricao}>
+          Informe seu e-mail cadastrado e defina uma nova senha.
         </Text>
-      </View>
+
+        <View style={s.campo}>
+          <Text style={s.label}>E-mail cadastrado</Text>
+          <TextInput
+            style={s.input}
+            placeholder="seu@email.com"
+            placeholderTextColor={cores.textoSecundario}
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+        </View>
+
+        <View style={s.campo}>
+          <Text style={s.label}>Nova senha</Text>
+          <TextInput
+            style={s.input}
+            placeholder="Mínimo 6 caracteres"
+            placeholderTextColor={cores.textoSecundario}
+            value={novaSenha}
+            onChangeText={setNovaSenha}
+            autoCapitalize="none"
+            autoCorrect={false}
+            secureTextEntry
+          />
+        </View>
+
+        <View style={s.campo}>
+          <Text style={s.label}>Confirmar nova senha</Text>
+          <TextInput
+            style={s.input}
+            placeholder="Repita a senha"
+            placeholderTextColor={cores.textoSecundario}
+            value={confirmarSenha}
+            onChangeText={setConfirmarSenha}
+            autoCapitalize="none"
+            autoCorrect={false}
+            secureTextEntry
+          />
+        </View>
+
+        <TouchableOpacity
+          style={[s.botao, carregando && { opacity: 0.65 }]}
+          onPress={handleRedefinir}
+          disabled={carregando}>
+          {carregando
+            ? <ActivityIndicator color="#fff" />
+            : <Text style={s.botaoTexto}>REDEFINIR SENHA</Text>
+          }
+        </TouchableOpacity>
+
+        <View style={s.infoCard}>
+          <MaterialCommunityIcons name="information-outline" size={18} color={cores.primariaEscura} />
+          <Text style={s.infoTexto}>
+            A senha será alterada imediatamente. Após confirmar, faça login com a nova senha.
+          </Text>
+        </View>
+      </ScrollView>
     </View>
   );
 }
+
+const s = StyleSheet.create({
+  container:    { flex: 1, backgroundColor: cores.fundo },
+  header:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingBottom: 14 },
+  voltarBtn:    { width: 40, height: 40, justifyContent: 'center' },
+  headerTitulo: { fontSize: 18, fontWeight: 'bold', color: cores.texto },
+  corpo:        { paddingHorizontal: 24, paddingBottom: 40 },
+  titulo:       { fontSize: 22, fontWeight: 'bold', color: cores.texto, marginBottom: 8 },
+  descricao:    { fontSize: 14, color: cores.textoSecundario, marginBottom: 24, lineHeight: 20 },
+  campo:        { marginBottom: 16 },
+  label:        { fontSize: 14, color: cores.texto, marginBottom: 6, fontWeight: '500' },
+  input:        { height: 48, borderWidth: 1, borderColor: cores.borda, borderRadius: 8, paddingHorizontal: 14, fontSize: 15, color: cores.texto, backgroundColor: cores.fundo },
+  botao:        { backgroundColor: cores.primaria, height: 50, borderRadius: 8, justifyContent: 'center', alignItems: 'center', marginTop: 8 },
+  botaoTexto:   { color: '#fff', fontSize: 15, fontWeight: 'bold', letterSpacing: 0.5 },
+  infoCard:     { flexDirection: 'row', alignItems: 'flex-start', gap: 10, backgroundColor: cores.fundoCard, borderRadius: 8, padding: 14, marginTop: 20 },
+  infoTexto:    { flex: 1, fontSize: 13, color: cores.texto, lineHeight: 18 },
+});
 
 export default TelaRecuperarSenha;

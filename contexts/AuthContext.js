@@ -1,46 +1,52 @@
 import { createContext, useContext, useEffect, useState } from 'react';
-import { supabase } from '../lib/supabase';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const TOKEN_KEY = '@acessivel:token';
+const USER_KEY  = '@acessivel:user';
 
 const AuthContext = createContext({
-  session: null,
   user: null,
+  token: null,
   carregandoSessao: true,
+  entrar: async () => {},
   sair: async () => {},
 });
 
 export function AuthProvider({ children }) {
-  const [session, setSession] = useState(null);
-  const [carregandoSessao, setCarregandoSessao] = useState(true);
+  const [user, setUser]                   = useState(null);
+  const [token, setToken]                 = useState(null);
+  const [carregandoSessao, setCarregando] = useState(true);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setCarregandoSessao(false);
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setSession(session);
+    (async () => {
+      const t = await AsyncStorage.getItem(TOKEN_KEY);
+      const u = await AsyncStorage.getItem(USER_KEY);
+      if (t && u) {
+        setToken(t);
+        setUser(JSON.parse(u));
       }
-    );
-
-    return () => {
-      subscription.unsubscribe();
-    };
+      setCarregando(false);
+    })();
   }, []);
 
+  const entrar = async (tokenRecebido, userRecebido) => {
+    await AsyncStorage.setItem(TOKEN_KEY, tokenRecebido);
+    await AsyncStorage.setItem(USER_KEY, JSON.stringify(userRecebido));
+    setToken(tokenRecebido);
+    setUser(userRecebido);
+  };
+
   const sair = async () => {
-    await supabase.auth.signOut();
+    await AsyncStorage.multiRemove([TOKEN_KEY, USER_KEY]);
+    setToken(null);
+    setUser(null);
   };
 
-  const value = {
-    session,
-    user: session?.user ?? null,
-    carregandoSessao,
-    sair,
-  };
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={{ user, token, carregandoSessao, entrar, sair }}>
+      {children}
+    </AuthContext.Provider>
+  );
 }
 
 export function useAuth() {

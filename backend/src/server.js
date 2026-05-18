@@ -2,16 +2,20 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 
-import authRouter from './routes/auth.js';
-import placesRouter from './routes/places.js';
+import authRouter    from './routes/auth.js';
+import placesRouter  from './routes/places.js';
+import reviewsRouter from './routes/reviews.js';
+import rankingRouter from './routes/ranking.js';
 
 const app = express();
 
 app.use(cors());
 app.use(express.json());
 
-app.use('/auth', authRouter);
-app.use('/places', placesRouter);
+app.use('/auth',    authRouter);
+app.use('/places',  placesRouter);
+app.use('/reviews', reviewsRouter);
+app.use('/ranking', rankingRouter);
 
 app.get('/health', (_req, res) => res.json({ status: 'ok' }));
 

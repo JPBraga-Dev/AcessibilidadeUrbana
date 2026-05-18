@@ -26,10 +26,10 @@ router.get('/', requireAuth, async (req, res) => {
   return res.json(data);
 });
 
-// GET /places/map — dados para o mapa (público, read-only)
+// GET /places/map — dados para o mapa
 // Query params:
 //   filter=todos | rampas | calcadas | 4estrelas
-router.get('/map', async (req, res) => {
+router.get('/map', requireAuth, async (req, res) => {
   const { filter = 'todos' } = req.query;
 
   const [levelRes, coordRes] = await Promise.all([
@@ -75,6 +75,50 @@ router.get('/map', async (req, res) => {
   }
 
   return res.json(merged);
+});
+
+// GET /places/:id/summary — resumo completo: info + contagem + critérios agregados
+router.get('/:id/summary', requireAuth, async (req, res) => {
+  const { id } = req.params;
+
+  const [placeRes, reviewsRes] = await Promise.all([
+    supabase.from('places').select('*, regions(name)').eq('id', id).maybeSingle(),
+    supabase
+      .from('reviews')
+      .select(`
+        id, rating,
+        accessibility_checklist (
+          ramp, sidewalk, sound_signaling, tactile_floor,
+          disabled_parking, elevator, accessible_bathroom
+        )
+      `)
+      .eq('place_id', id),
+  ]);
+
+  if (placeRes.error) return res.status(500).json({ error: placeRes.error.message });
+  if (!placeRes.data)  return res.status(404).json({ error: 'Local não encontrado.' });
+
+  const reviews    = reviewsRes.data ?? [];
+  const totalReviews = reviews.length;
+
+  // Agrega critérios: true se pelo menos 1 review marcou o critério
+  const CRITERIOS = ['ramp', 'sidewalk', 'sound_signaling', 'tactile_floor', 'disabled_parking', 'elevator', 'accessible_bathroom'];
+  const criteria  = Object.fromEntries(
+    CRITERIOS.map((k) => [k, reviews.some((r) => r.accessibility_checklist?.[k] === true)])
+  );
+
+  const avg    = placeRes.data.avg_rating ?? 0;
+  const nivel  = avg >= 4 ? 'green' : avg >= 2.5 ? 'orange' : 'red';
+  const label  = nivel === 'green' ? 'Acessível' : nivel === 'orange' ? 'Parcialmente acessível' : 'Pouco acessível';
+
+  return res.json({
+    ...placeRes.data,
+    region_name:    placeRes.data.regions?.name ?? null,
+    review_count:   totalReviews,
+    criteria,
+    accessibility_level: nivel,
+    accessibility_label: label,
+  });
 });
 
 // GET /places/:id — detalhes completos de um local
